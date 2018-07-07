@@ -1,7 +1,6 @@
 package cn.ocoop.framework.safe.ann.handler.advice;
 
 import cn.ocoop.framework.safe.ann.*;
-import com.lanjoys.framework.safe.ann.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.support.StaticMethodMatcherPointcutAdvisor;
 import org.springframework.core.annotation.AnnotationUtils;
