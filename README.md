@@ -1,0 +1,1 @@
+# safe-spring-boot-starter
