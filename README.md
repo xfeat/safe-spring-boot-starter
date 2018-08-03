@@ -1,6 +1,7 @@
 # safe-spring-boot-starter
 
-##简介
+## 简介
+
 这是一个spring-boot-starter,如果你还不了解spring-boot以及它的starter如何使用，请先学习spring-boot。
 
 该项目提供了一个简单的会话、权限管理功能，目前支持的功能：
@@ -8,7 +9,8 @@
 - 基于redis分布式会话(需要spring-data-redis支持)
 - 基于注解的权限检查(@RequireXXX etc.)
 
-##使用
+## 使用
+
 - step1：添加依赖
 ```xml
     <dependency>
@@ -65,7 +67,23 @@ safe:
     length: 4                                   #验证码位数
 ```
 
-- step5：使用注解
+- step5：编写登录代码
+```java
+public void login(HttpServletResponse response, String username, String password) throws UnknownAccountException, AccountLockedException, IncorrectCredentialsException {
+    User user = getUser(username);
+    HashCode inputPasswordEncrypt = Md5.encrypt(password, user.getId());
+    if (HashCode.fromString(user.getPassword()).equals(inputPasswordEncrypt)) {
+        BoundHashOperations<String, String, String> hash = SessionManager.createAuthenticatedSession(response, user.getId());
+        hash.put("username", user.getUsername());
+        hash.put("state", user.getState());
+        return;
+    }
+
+    throw new IncorrectCredentialsException("密码错误");
+}
+```
+
+- step6：使用注解
 ```java
      @RestController
      @RequiresPermissions("权限编码")//需要权限编码才能访问
@@ -91,7 +109,8 @@ safe:
      }
 
 ```
-##说明
+
+## 说明
 
 - 状态码
 
