@@ -1,7 +1,7 @@
 package cn.ocoop.framework.safe.ann.handler;
 
-import cn.ocoop.framework.safe.ann.handler.iface.AbstractAnnotationMethodInterceptor;
 import cn.ocoop.framework.safe.ann.RequiresUser;
+import cn.ocoop.framework.safe.ann.handler.iface.AbstractAnnotationMethodInterceptor;
 import cn.ocoop.framework.safe.ex.authz.AuthorizingException;
 import org.aopalliance.intercept.MethodInvocation;
 

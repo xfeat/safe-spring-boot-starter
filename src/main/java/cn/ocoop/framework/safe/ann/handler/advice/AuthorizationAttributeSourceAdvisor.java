@@ -12,7 +12,7 @@ import java.lang.reflect.Method;
 public class AuthorizationAttributeSourceAdvisor extends StaticMethodMatcherPointcutAdvisor {
     private static final Class<? extends Annotation>[] AUTHZ_ANNOTATION_CLASSES =
             new Class[]{
-                    RequiresPermissions.class, RequiresRoles.class,
+                    RequiresPermissions.class, RequiresRoles.class, RequiresCaptcha.class,
                     RequiresUser.class, RequiresGuest.class, RequiresAuthentication.class
             };
 

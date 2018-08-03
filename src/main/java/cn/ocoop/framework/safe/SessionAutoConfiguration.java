@@ -1,11 +1,10 @@
 package cn.ocoop.framework.safe;
 
-import cn.ocoop.framework.safe.ex.ExceptionAdviceHandler;
 import cn.ocoop.framework.safe.ann.handler.advice.AuthorizationAttributeSourceAdvisor;
 import cn.ocoop.framework.safe.auth.controller.CaptchaController;
 import cn.ocoop.framework.safe.auth.controller.LogoutController;
 import cn.ocoop.framework.safe.auth.service.AuthorizingService;
-import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
+import cn.ocoop.framework.safe.ex.ExceptionAdviceHandler;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -48,13 +47,13 @@ public class SessionAutoConfiguration {
         return new AuthorizationAttributeSourceAdvisor();
     }
 
-    @Bean
-    @ConditionalOnMissingBean(DefaultAdvisorAutoProxyCreator.class)
-    public DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator() {
-        DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator = new DefaultAdvisorAutoProxyCreator();
-        defaultAdvisorAutoProxyCreator.setProxyTargetClass(true);
-        return defaultAdvisorAutoProxyCreator;
-    }
+    //@Bean
+    //@ConditionalOnMissingBean(DefaultAdvisorAutoProxyCreator.class)
+    //public DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator() {
+    //    DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator = new DefaultAdvisorAutoProxyCreator();
+    //    defaultAdvisorAutoProxyCreator.setProxyTargetClass(true);
+    //    return defaultAdvisorAutoProxyCreator;
+    //}
 
     @Bean
     @ConditionalOnMissingBean(ExceptionAdviceHandler.class)

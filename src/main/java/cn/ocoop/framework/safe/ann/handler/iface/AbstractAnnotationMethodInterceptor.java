@@ -24,23 +24,23 @@ public abstract class AbstractAnnotationMethodInterceptor implements AnnotationM
     @Override
     public boolean supports(MethodInvocation mi) {
         if (annotationClass == null) throw new InvalidConfigStateException("未正确配置AnnotationMethodIntercept");
-        return getAnnotation(mi,annotationClass) != null;
+        return getAnnotation(mi, annotationClass) != null;
     }
 
     @Override
     public void assertAuthorized(MethodInvocation methodInvocation) throws AuthorizingException {
-        Annotation annotation = getAnnotation(methodInvocation,annotationClass);
+        Annotation annotation = getAnnotation(methodInvocation, annotationClass);
         try {
-            assertAuth(methodInvocation,annotation);
+            assertAuth(methodInvocation, annotation);
         } catch (AuthorizingException e) {
-            log.error("没有访问权限:{}{}",methodInvocation.getMethod(),e.getMessage());
+            log.error("没有访问权限:{}{}", methodInvocation.getMethod(), e.getMessage());
             throw e;
         }
     }
 
-    protected abstract void assertAuth(MethodInvocation methodInvocation,Annotation annotation) throws AuthorizingException;
+    protected abstract void assertAuth(MethodInvocation methodInvocation, Annotation annotation) throws AuthorizingException;
 
-    protected Annotation getAnnotation(MethodInvocation mi,Class<? extends Annotation> annotationClass) {
+    protected Annotation getAnnotation(MethodInvocation mi, Class<? extends Annotation> annotationClass) {
         Method m = mi.getMethod();
 
         Annotation a = AnnotationUtils.findAnnotation(m, annotationClass);

@@ -1,11 +1,11 @@
 package cn.ocoop.framework.safe.ann.handler;
 
 import cn.ocoop.framework.safe.SessionManager;
-import com.google.common.base.Joiner;
 import cn.ocoop.framework.safe.ann.Logical;
 import cn.ocoop.framework.safe.ann.RequiresPermissions;
 import cn.ocoop.framework.safe.ex.authz.AuthorizingException;
 import cn.ocoop.framework.safe.ex.authz.LackPermissionException;
+import com.google.common.base.Joiner;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -21,6 +21,8 @@ public class PermissionAnnotationMethodInterceptor extends AuthenticatedAnnotati
 
     @Override
     protected void assertAuth(MethodInvocation methodInvocation, Annotation annotation) throws AuthorizingException {
+        super.assertAuth(methodInvocation, annotation);
+
         RequiresPermissions requiresPermissions = (RequiresPermissions) annotation;
         String[] requiredPmsCode = requiresPermissions.value();
         if (ArrayUtils.isEmpty(requiredPmsCode)) {

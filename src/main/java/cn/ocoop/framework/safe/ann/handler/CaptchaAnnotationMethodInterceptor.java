@@ -4,9 +4,9 @@ import cn.ocoop.framework.safe.SafeProperties;
 import cn.ocoop.framework.safe.SessionManager;
 import cn.ocoop.framework.safe.WebContext;
 import cn.ocoop.framework.safe.ann.RequiresCaptcha;
+import cn.ocoop.framework.safe.ann.handler.iface.AbstractAnnotationMethodInterceptor;
 import cn.ocoop.framework.safe.ex.authz.AuthorizingException;
 import cn.ocoop.framework.safe.ex.authz.InvalidCaptchaException;
-import cn.ocoop.framework.safe.ann.handler.iface.AbstractAnnotationMethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.lang3.StringUtils;
 

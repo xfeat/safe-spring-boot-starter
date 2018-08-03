@@ -1,9 +1,9 @@
 package cn.ocoop.framework.safe;
 
-import com.alibaba.fastjson.JSON;
-import com.google.common.collect.Lists;
 import cn.ocoop.framework.safe.auth.service.AuthorizingService;
 import cn.ocoop.framework.safe.utils.CookieUtils;
+import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Lists;
 import lombok.Data;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.BooleanUtils;
@@ -89,8 +89,8 @@ public class SessionManager {
     private static BoundHashOperations<String, String, String> createSession(HttpServletResponse response, String sessionId, Long accountId) {
         BoundHashOperations<String, String, String> hash = redisTemplate.boundHashOps(getSessionkey(sessionId));
 
-        hash.expire(2, TimeUnit.DAYS);
         hash.put(SafeProperties.SessionProperties.DEFAULT_SESSION_ID, sessionId);
+        hash.expire(2, TimeUnit.DAYS);
         if (accountId != null) {
             hash.put("accountId", String.valueOf(accountId));
             redisTemplate.opsForValue().set(getSessionMapKey(accountId, sessionId), sessionId, 2, TimeUnit.DAYS);
@@ -112,7 +112,15 @@ public class SessionManager {
      * @return
      */
     public static BoundHashOperations<String, String, String> createAuthenticatedSession(HttpServletResponse response, Long accountId) {
+        clearLastSession(accountId, WebContext.get().getSessionId());
         return createSession(response, createSessionId(), accountId);
+    }
+
+    private static void clearLastSession(Long accountId, String sessionId) {
+        redisTemplate.delete(getSessionkey(sessionId));
+        if (accountId != null) {
+            redisTemplate.delete(getSessionMapKey(accountId, sessionId));
+        }
     }
 
     private static String getSessionkey(String sessionId) {

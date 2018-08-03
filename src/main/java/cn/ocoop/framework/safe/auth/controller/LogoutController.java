@@ -2,8 +2,8 @@ package cn.ocoop.framework.safe.auth.controller;
 
 
 import cn.ocoop.framework.safe.SessionManager;
-import cn.ocoop.framework.safe.utils.Result;
 import cn.ocoop.framework.safe.ann.RequiresAuthentication;
+import cn.ocoop.framework.safe.utils.Result;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
