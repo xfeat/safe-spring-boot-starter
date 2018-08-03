@@ -1,4 +1,4 @@
-# safe-spring-boot-starter
+# 集群会话权限管理<br> <small>*`使用safe-spring-boot-starter保护你的spring-boot应用`*</small>
 
 ## 简介
 
