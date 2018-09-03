@@ -152,7 +152,60 @@ public void login(HttpServletResponse response, String username, String password
 
 目前尚未提供超时配置，默认给定的超时时间为2天
 
+- 对Controller返回值的字段进行过滤
 
+很多时候，我们会写公共的service去完成相同逻辑，但不同的接口可能需要返回不同的字段值，例如：拥有`查看工资`权限的人可以查看员工的工资属性，
+那么这时候对于这个不包含`工资`属性返回值就需要构建不同service方法或者在controller重写该字段的值。
+
+通常我们会通过两种方式来覆盖该属性：
+
+    1.直接删除该字段
+    2.覆盖该字段的值
+    
+ 对于第一种情况你可能会想到类似于github接口的实现，可以根据调用方来决定响应字段。然而，对于web开发而言，我们很多时候更倾向于返回一个包含默认值的字段。
+ 
+为此，提供了`@FieldFilter`注解,使用该注解可以轻松的为不想返回真实值的字段设置零值。
+
+用法：
+```java
+@Data
+class Paging<T> {
+     private Collection<T> data;
+}
+
+@Data
+class Job {
+    private long id;
+    private String title;
+    private String name;
+    private boolean shelfState;
+}
+
+@RestController
+@RequestMapping("/jobs")
+class TestController {
+      @Autowired
+      private JobService jobService;
+     
+      @FieldFilter({"data.title","data.firstName"})
+      @FieldFilter({"data.id","data.shelfState"})
+      @RequestMapping("/list/{pageNum}/{pageSize}")
+      public Paging<Job> list(  @PathVariable int pageNum, @PathVariable int pageSize ) {
+          PageHelper.startPage(pageNum, pageSize);
+          return Paging.build(pageNum, pageSize, jobService.list());
+      }
+      
+      
+      @FieldFilter(value="title", always = false, requireAuthentication = true)
+      @RequestMapping("/get/{id}")
+      public Job list( @PathVariable long id) {
+          return jobService.get(id);
+      }
+}
+
+```   
+
+更多用法请参看该注解注释
 
 
 

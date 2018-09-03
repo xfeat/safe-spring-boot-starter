@@ -109,6 +109,7 @@
         <commons-collections4.version>4.1</commons-collections4.version>
         <fastjson.version>1.2.47</fastjson.version>
         <xvcode.version>1.0</xvcode.version>
+        <beanutils.version>1.9.3</beanutils.version>
     </properties>
 
     <dependencies>
@@ -168,6 +169,15 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>${fastjson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>${beanutils.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
         </dependency>
     </dependencies>
     <dependencyManagement>
