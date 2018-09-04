@@ -5,7 +5,7 @@ import cn.ocoop.framework.safe.auth.controller.CaptchaController;
 import cn.ocoop.framework.safe.auth.controller.LogoutController;
 import cn.ocoop.framework.safe.auth.service.AuthorizingService;
 import cn.ocoop.framework.safe.ex.ExceptionAdviceHandler;
-import cn.ocoop.framework.safe.response.CommonResponseBodyAdvice;
+import cn.ocoop.framework.safe.response.FieldFilterAdvice;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -64,9 +64,9 @@ public class SessionAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(CommonResponseBodyAdvice.class)
-    public CommonResponseBodyAdvice commonResponseBodyAdvice() {
-        return new CommonResponseBodyAdvice();
+    @ConditionalOnMissingBean(FieldFilterAdvice.class)
+    public FieldFilterAdvice commonResponseBodyAdvice() {
+        return new FieldFilterAdvice();
     }
 
 }

@@ -164,7 +164,7 @@ public void login(HttpServletResponse response, String username, String password
     
  对于第一种情况你可能会想到类似于github接口的实现，可以根据调用方来决定响应字段。然而，对于web开发而言，我们很多时候更倾向于返回一个包含默认值的字段。
  
-为此，提供了`@FieldFilter`注解,使用该注解可以轻松的为不想返回真实值的字段设置零值。
+为此，提供了[@FieldFilter](https://github.com/xfeat/safe-spring-boot-starter/blob/master/src/main/java/cn/ocoop/framework/safe/response/FieldFilter.java)注解,使用该注解可以轻松的为不想返回真实值的字段设置零值。
 
 用法：
 ```java
@@ -196,7 +196,7 @@ class TestController {
       }
       
       
-      @FieldFilter(value="title", always = false, requireAuthentication = true)
+      @FieldFilter(value="title", requireAuthentication = true)
       @RequestMapping("/get/{id}")
       public Job list( @PathVariable long id) {
           return jobService.get(id);

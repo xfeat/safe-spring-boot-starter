@@ -23,7 +23,7 @@ import java.util.Set;
 
 @Slf4j
 @ControllerAdvice
-public class CommonResponseBodyAdvice implements ResponseBodyAdvice {
+public class FieldFilterAdvice implements ResponseBodyAdvice {
     public static void setDefaultValue(Object o, String[] fieldName) throws InvocationTargetException, IllegalAccessException {
         if (fieldName.length == 1) {
             if (o instanceof Collection) {
@@ -42,8 +42,7 @@ public class CommonResponseBodyAdvice implements ResponseBodyAdvice {
 
         if (o instanceof Collection) {
             for (Object n : ((Collection) o)) {
-                String currFileName = fieldName[0];
-                setPDDefaultValue(fieldName, n, currFileName);
+                setPDDefaultValue(fieldName, n, fieldName[0]);
             }
         } else if (o instanceof Map) {
             setDefaultValue(((Map) o).values(), fieldName);
@@ -55,13 +54,13 @@ public class CommonResponseBodyAdvice implements ResponseBodyAdvice {
 
     private static void setPDDefaultValue(String[] fieldName, Object n, String currFileName) {
         PropertyDescriptor pd = BeanUtils.getPropertyDescriptor(n.getClass(), currFileName);
-        if (pd != null) {
-            try {
-                Object fieldValue = pd.getReadMethod().invoke(n);
-                setDefaultValue(fieldValue, ArrayUtils.remove(fieldName, 0));
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                log.error("无法获取属性{}的值", fieldName, e);
-            }
+        if (Objects.isNull(pd)) return;
+
+        try {
+            Object fieldValue = pd.getReadMethod().invoke(n);
+            setDefaultValue(fieldValue, ArrayUtils.remove(fieldName, 0));
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            log.error("无法获取属性{}的值", fieldName, e);
         }
     }
 
@@ -75,17 +74,21 @@ public class CommonResponseBodyAdvice implements ResponseBodyAdvice {
         if (Objects.isNull(o)) return null;
 
         for (FieldFilter filter : executionFilters(methodParameter)) {
-            if (filter.always()) {
-                setDefaultPropertyValue(o, filter);
+            if (requireAuthorized(filter)) {
+                if (lacksAuthentication(filter) || lacksPermission(filter) || lacksRole(filter)) {
+                    setDefaultPropertyValue(o, filter);
+                }
                 continue;
             }
 
-            if (lacksAuthentication(filter) || lacksPermission(filter) || lacksRole(filter)) {
-                setDefaultPropertyValue(o, filter);
-            }
+            setDefaultPropertyValue(o, filter);
         }
 
         return o;
+    }
+
+    private boolean requireAuthorized(FieldFilter filter) {
+        return filter.requireAuthentication() || ArrayUtils.isNotEmpty(filter.requirePermission()) || ArrayUtils.isNotEmpty(filter.requireRole());
     }
 
     private Set<FieldFilter> executionFilters(MethodParameter methodParameter) {
@@ -108,7 +111,6 @@ public class CommonResponseBodyAdvice implements ResponseBodyAdvice {
 
     private void setDefaultPropertyValue(Object o, FieldFilter filter) {
         try {
-
             for (String field : filter.value()) {
                 setDefaultValue(o, field.split("\\."));
             }
