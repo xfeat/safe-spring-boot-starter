@@ -17,7 +17,6 @@ public @interface FieldFilter {
     /**
      * 属性,可以使用.来表示嵌套对象
      *
-     * @return
      */
     String[] value() default {};
 
@@ -25,21 +24,18 @@ public @interface FieldFilter {
     /**
      * 是否需要登录
      *
-     * @return
      */
     boolean requireAuthentication() default false;
 
     /**
      * 是否需要权限
      *
-     * @return
      */
     String[] requirePermission() default {};
 
     /**
      * 是否需要角色
      *
-     * @return
      */
     String[] requireRole() default {};
 }
