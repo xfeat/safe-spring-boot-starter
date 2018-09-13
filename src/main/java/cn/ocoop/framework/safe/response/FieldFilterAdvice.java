@@ -3,6 +3,9 @@ package cn.ocoop.framework.safe.response;
 import cn.ocoop.framework.safe.SessionManager;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.beanutils.ConvertUtils;
+import org.apache.commons.beanutils.converters.BigDecimalConverter;
+import org.apache.commons.beanutils.converters.BigIntegerConverter;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.beans.BeanUtils;
@@ -16,6 +19,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +40,8 @@ public class FieldFilterAdvice implements ResponseBodyAdvice {
                     setDefaultValue(o1, fieldName);
                 }
             } else {
+                ConvertUtils.register(new BigDecimalConverter(null), BigDecimal.class);
+                ConvertUtils.register(new BigIntegerConverter(null), BigInteger.class);
                 org.apache.commons.beanutils.BeanUtils.setProperty(o, fieldName[0], null);
             }
             return;
