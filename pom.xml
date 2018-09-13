@@ -6,7 +6,7 @@
 
     <groupId>cn.ocoop.framework</groupId>
     <artifactId>safe-spring-boot-starter</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
 
     <name>safe-spring-boot-starter</name>
     <description>simple and easy use security framework to protect your spring boot web-application.</description>
