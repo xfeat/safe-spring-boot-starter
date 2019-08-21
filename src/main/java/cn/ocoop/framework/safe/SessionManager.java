@@ -1,10 +1,12 @@
 package cn.ocoop.framework.safe;
 
+
 import cn.ocoop.framework.safe.auth.service.AuthorizingService;
 import cn.ocoop.framework.safe.utils.CookieUtils;
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -17,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+@Slf4j
 @Data
 public class SessionManager {
 
@@ -34,13 +37,15 @@ public class SessionManager {
 
     public static List<BoundHashOperations<String, String, String>> getSession(long accountId) {
         Set<String> keys = redisTemplate.keys(getSessionMapKey(accountId, "*"));
+
         List<BoundHashOperations<String, String, String>> sessions = Lists.newArrayList();
 
         if (CollectionUtils.isNotEmpty(keys)) {
             for (String key : keys) {
-                sessions.add(redisTemplate.boundHashOps(key));
+                sessions.add(getSession(redisTemplate.opsForValue().get(key)));
             }
         }
+
         return sessions;
     }
 
@@ -112,8 +117,22 @@ public class SessionManager {
      * @return
      */
     public static BoundHashOperations<String, String, String> createAuthenticatedSession(HttpServletResponse response, Long accountId) {
+        BoundHashOperations<String, String, String> lastSession = getSession();
+
+        BoundHashOperations<String, String, String> session = createSession(response, createSessionId(), accountId);
+        Map<String, String> entries = lastSession.entries();
+        if (entries != null) {
+            for (String key : entries.keySet()) {
+                if ("accountId".equals(key) || SafeProperties.SessionProperties.DEFAULT_SESSION_ID.equals(key) || entries.get(key) == null) {
+                    continue;
+                }
+
+                session.put(key, entries.get(key));
+            }
+        }
+
         clearLastSession(accountId, WebContext.get().getSessionId());
-        return createSession(response, createSessionId(), accountId);
+        return session;
     }
 
     private static void clearLastSession(Long accountId, String sessionId) {

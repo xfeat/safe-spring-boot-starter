@@ -15,7 +15,7 @@ import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
-public class ExceptionAdviceHandler{
+public class ExceptionAdviceHandler {
 
     @ExceptionHandler(AuthorizingException.class)
     public Map<String, String> authExceptionHandler(HttpServletRequest request, HttpServletResponse response, AuthorizingException ex) {
