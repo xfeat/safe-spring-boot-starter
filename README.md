@@ -25,17 +25,7 @@
     </dependency>
 ```
 
-- step2：配置filter
-```java
-    @Bean
-    public FilterRegistrationBean safeFilter() {
-        FilterRegistrationBean filter = new FilterRegistrationBean<>(new SafeFilter());
-        filter.addUrlPatterns("/*");
-        return filter;
-    }
-```
-
-- step3：实现接口AuthorizingService，并交由spring管理
+- step2：实现接口AuthorizingService，并交由spring管理
 ```java
     @Service
     public class AuthenticatingService implements AuthorizingService {
@@ -50,7 +40,7 @@
     }
 ```
 
-- step4：配置yml
+- step3：配置yml
 ```yml
 spring:
   redis:
@@ -61,10 +51,6 @@ safe:
     session-key-prefix: "boss:session:"         #redis中存储会话id的key前缀
     session-map-key-prefix: "boss:session_map:" #redis中存储accountId和会话id映射关系的key前缀
     permission-key: "boss:pms"                  #redis中存储权限信息的key前缀
-  captcha:                                      #图形验证码配置
-    width: 100                                  #宽度（px）
-    height: 40                                  #高度（px）
-    length: 4                                   #验证码位数
 ```
 
 - step5：编写登录代码

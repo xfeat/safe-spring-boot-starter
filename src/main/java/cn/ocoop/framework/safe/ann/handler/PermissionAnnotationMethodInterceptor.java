@@ -44,13 +44,13 @@ public class PermissionAnnotationMethodInterceptor extends AuthenticatedAnnotati
 
         if (requiresPermissions.logical() == Logical.AND) {
             if (!SessionManager.hasPermission(requiredPmsCode)) {
-                throw new LackPermissionException("无权限,需要" + Joiner.on(",").join(requiredPmsCode));
+                throw new LackPermissionException("lacks permission,require:" + Joiner.on(",").join(requiredPmsCode));
             }
             return;
         }
 
         if (!SessionManager.hasAnyPermission(requiredPmsCode)) {
-            throw new LackPermissionException("无权限,需要" + Joiner.on(",").join(requiredPmsCode));
+            throw new LackPermissionException("lacks permission,require:" + Joiner.on(",").join(requiredPmsCode));
         }
 
     }

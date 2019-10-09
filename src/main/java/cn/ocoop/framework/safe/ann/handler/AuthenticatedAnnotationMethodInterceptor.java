@@ -20,6 +20,6 @@ public class AuthenticatedAnnotationMethodInterceptor extends AbstractAnnotation
 
     @Override
     protected void assertAuth(MethodInvocation methodInvocation, Annotation annotation) throws AuthorizingException {
-        if (!SessionManager.isLogin()) throw new UnauthenticatedException("未登录");
+        if (!SessionManager.isLogin()) throw new UnauthenticatedException("session is not authenticated!");
     }
 }

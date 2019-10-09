@@ -23,13 +23,13 @@ public class RoleAnnotationMethodInterceptor extends AuthenticatedAnnotationMeth
 
         if (requiresRoles.logical() == Logical.AND) {
             if (!SessionManager.hasRole(requiresRoles.value())) {
-                throw new LackPermissionException("无权限,需要" + Joiner.on(",").join(requiresRoles.value()));
+                throw new LackPermissionException("lacks role,require:" + Joiner.on(",").join(requiresRoles.value()));
             }
             return;
         }
 
         if (!SessionManager.hasAnyRole(requiresRoles.value())) {
-            throw new LackPermissionException("无权限,需要" + Joiner.on(",").join(requiresRoles.value()));
+            throw new LackPermissionException("lacks role,require:" + Joiner.on(",").join(requiresRoles.value()));
         }
     }
 }

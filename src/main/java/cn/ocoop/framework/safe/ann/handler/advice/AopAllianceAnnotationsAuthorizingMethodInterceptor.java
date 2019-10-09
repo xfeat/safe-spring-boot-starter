@@ -1,5 +1,6 @@
 package cn.ocoop.framework.safe.ann.handler.advice;
 
+import cn.ocoop.framework.safe.SessionManager;
 import cn.ocoop.framework.safe.ann.handler.*;
 import cn.ocoop.framework.safe.ann.handler.iface.AnnotationMethodInterceptor;
 import cn.ocoop.framework.safe.ex.authz.AuthorizingException;
@@ -24,6 +25,7 @@ public class AopAllianceAnnotationsAuthorizingMethodInterceptor implements Metho
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
+        SessionManager.refreshCachedRoleAndPermissionIfNecessary();
         assertAuthorized(invocation);
         return invocation.proceed();
     }

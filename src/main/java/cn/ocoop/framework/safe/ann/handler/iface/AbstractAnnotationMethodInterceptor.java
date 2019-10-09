@@ -1,7 +1,9 @@
 package cn.ocoop.framework.safe.ann.handler.iface;
 
+import cn.ocoop.framework.safe.SessionManager;
 import cn.ocoop.framework.safe.ex.InvalidConfigStateException;
 import cn.ocoop.framework.safe.ex.authz.AuthorizingException;
+import cn.ocoop.framework.safe.ex.authz.InvalidSessionStateException;
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -23,7 +25,8 @@ public abstract class AbstractAnnotationMethodInterceptor implements AnnotationM
 
     @Override
     public boolean supports(MethodInvocation mi) {
-        if (annotationClass == null) throw new InvalidConfigStateException("未正确配置AnnotationMethodIntercept");
+        if (annotationClass == null)
+            throw new InvalidConfigStateException("incorrect AnnotationMethodIntercept configured");
         return getAnnotation(mi, annotationClass) != null;
     }
 
@@ -31,14 +34,19 @@ public abstract class AbstractAnnotationMethodInterceptor implements AnnotationM
     public void assertAuthorized(MethodInvocation methodInvocation) throws AuthorizingException {
         Annotation annotation = getAnnotation(methodInvocation, annotationClass);
         try {
+            assertSessionState(methodInvocation, annotation);
             assertAuth(methodInvocation, annotation);
         } catch (AuthorizingException e) {
-            log.error("没有访问权限:{}{}", methodInvocation.getMethod(), e.getMessage());
+            log.error("lacks permission:{}{}", methodInvocation.getMethod(), e.getMessage());
             throw e;
         }
     }
 
     protected abstract void assertAuth(MethodInvocation methodInvocation, Annotation annotation) throws AuthorizingException;
+
+    protected void assertSessionState(MethodInvocation methodInvocation, Annotation annotation) throws AuthorizingException {
+        if (!SessionManager.isValidSessionState()) throw new InvalidSessionStateException("invalid session state!");
+    }
 
     protected Annotation getAnnotation(MethodInvocation mi, Class<? extends Annotation> annotationClass) {
         Method m = mi.getMethod();

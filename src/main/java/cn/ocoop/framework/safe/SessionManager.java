@@ -5,7 +5,9 @@ import cn.ocoop.framework.safe.utils.CookieUtils;
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -13,13 +15,18 @@ import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import javax.servlet.http.HttpServletResponse;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+@Slf4j
 @Data
 public class SessionManager {
 
+    private static final String SESSION_PMS_REFRESH_ATTR_KEY = "_LAST_PMS_REFRESH_TIME";
+    private static final String DEFAULT_STATE_ATTR_KEY = "_STATE";
+    private static final String INVALID_STATE_ATTR_VALUE = "_INVALID";
     public static SafeProperties safeProperties;
     public static StringRedisTemplate redisTemplate;
     public static AuthorizingService authorizingService;
@@ -29,6 +36,14 @@ public class SessionManager {
     }
 
     public static BoundHashOperations<String, String, String> getSession() {
+
+        if (WebContext.get().getSessionId() == null) {
+            String sessionId = createSessionId();
+            SessionManager.createSession(WebContext.get().getResponse(), sessionId);
+            WebContext.get().setSessionId(sessionId);
+            log.info("new session[{}] is created!", sessionId);
+        }
+
         return redisTemplate.boundHashOps(getSessionkey(WebContext.get().getSessionId()));
     }
 
@@ -56,7 +71,6 @@ public class SessionManager {
         }
     }
 
-
     public static String createSessionId() {
         return UUID.randomUUID().toString();
     }
@@ -82,21 +96,21 @@ public class SessionManager {
                     getPmsKey(accountId)
             ));
 
-            CookieUtils.clear(response, safeProperties.getSession().getSessionIdCookieName());
+            CookieUtils.clear(response, safeProperties.getSessionIdCookieName());
         });
     }
 
     private static BoundHashOperations<String, String, String> createSession(HttpServletResponse response, String sessionId, Long accountId) {
         BoundHashOperations<String, String, String> hash = redisTemplate.boundHashOps(getSessionkey(sessionId));
 
-        hash.put(SafeProperties.SessionProperties.DEFAULT_SESSION_ID, sessionId);
+        hash.put(SafeProperties.DEFAULT_SESSION_ID, sessionId);
         hash.expire(2, TimeUnit.DAYS);
         if (accountId != null) {
             hash.put("accountId", String.valueOf(accountId));
             redisTemplate.opsForValue().set(getSessionMapKey(accountId, sessionId), sessionId, 2, TimeUnit.DAYS);
         }
 
-        CookieUtils.store(response, safeProperties.getSession().getSessionIdCookieName(), sessionId);
+        CookieUtils.store(response, safeProperties.getSessionIdCookieName(), sessionId);
         return hash;
     }
 
@@ -124,11 +138,11 @@ public class SessionManager {
     }
 
     private static String getSessionkey(String sessionId) {
-        return safeProperties.getSession().getSessionKeyPrefix() + sessionId;
+        return safeProperties.getSessionKeyPrefix() + sessionId;
     }
 
     private static String getSessionMapKey(long accountId, String sessionId) {
-        return safeProperties.getSession().getSessionMapKeyPrefix() + accountId + ":" + sessionId;
+        return safeProperties.getSessionMapKeyPrefix() + accountId + ":" + sessionId;
     }
 
     public static boolean isLogin(String sessionId) {
@@ -145,9 +159,10 @@ public class SessionManager {
         Boolean expire = redisTemplate.expire(getSessionkey(sessionId), 2, TimeUnit.DAYS);
         if (BooleanUtils.isNotTrue(expire)) return false;
 
-        if (!isLogin(sessionId)) return true;
+        if (isLogin(sessionId)) {
+            redisTemplate.opsForValue().set(getSessionMapKey(NumberUtils.toLong(getSession(sessionId).get("accountId")), sessionId), sessionId, 2, TimeUnit.DAYS);
+        }
 
-        redisTemplate.opsForValue().set(getSessionMapKey(NumberUtils.toLong(getSession(sessionId).get("accountId")), sessionId), sessionId, 2, TimeUnit.DAYS);
         return true;
     }
 
@@ -166,32 +181,45 @@ public class SessionManager {
         return Optional.of(NumberUtils.toLong(session.get("accountId")));
     }
 
-    public static void clearRoleAndPermission() {
-        redisTemplate.delete(safeProperties.getSession().getPermissionKey());
+    public static void clearAllRoleAndPermission() {
+        redisTemplate.delete(safeProperties.getPermissionKey());
     }
 
     public static void clearRoleAndPermission(long accountId) {
-        redisTemplate.opsForHash().delete(
-                safeProperties.getSession().getPermissionKey(),
-                getPmsKey(accountId),
-                getRoleKey(accountId)
-        );
+        clearRole(accountId);
+        clearPermission(accountId);
+    }
+
+    public static void clearRoleAndPermission() {
+        getCurrentAccountId().ifPresent(accountId -> {
+            clearRole(accountId);
+            clearPermission(accountId);
+        });
     }
 
     public static void clearRole(long accountId) {
         redisTemplate.opsForHash().delete(
-                safeProperties.getSession().getPermissionKey(),
+                safeProperties.getPermissionKey(),
                 getRoleKey(accountId)
         );
     }
 
     public static void clearPermission(long accountId) {
         redisTemplate.opsForHash().delete(
-                safeProperties.getSession().getPermissionKey(),
+                safeProperties.getPermissionKey(),
                 getPmsKey(accountId)
         );
     }
 
+    public static void refreshCachedRoleAndPermissionIfNecessary() {
+        String cachedRefreshTime = getAttribute(SESSION_PMS_REFRESH_ATTR_KEY);
+        if (cachedRefreshTime == null) return;
+
+        String refreshTime = redisTemplate.opsForValue().get(safeProperties.getPermissionRefreshKey());
+        if (refreshTime == null || Long.parseLong(cachedRefreshTime) > Long.parseLong(refreshTime)) return;
+
+        clearRoleAndPermission();
+    }
 
     @SuppressWarnings("unchecked")
     public static List<String> getPermission() {
@@ -200,7 +228,7 @@ public class SessionManager {
             return Lists.newArrayList();
         }
 
-        BoundHashOperations<String, String, String> pmsStore = redisTemplate.boundHashOps(safeProperties.getSession().getPermissionKey());
+        BoundHashOperations<String, String, String> pmsStore = redisTemplate.boundHashOps(safeProperties.getPermissionKey());
 
         String pmsKey = getPmsKey(AccountIdOptional.get());
         if (BooleanUtils.isNotTrue(pmsStore.hasKey(pmsKey))) {
@@ -209,6 +237,7 @@ public class SessionManager {
                 pms = Lists.newArrayList();
             }
             pmsStore.put(pmsKey, JSON.toJSONString(pms));
+            pmsStore.put(SESSION_PMS_REFRESH_ATTR_KEY, String.valueOf(Instant.now().toEpochMilli()));
         }
 
         return JSON.parseObject(pmsStore.get(pmsKey), List.class);
@@ -221,7 +250,7 @@ public class SessionManager {
             return Lists.newArrayList();
         }
 
-        BoundHashOperations<String, String, String> roleStore = redisTemplate.boundHashOps(safeProperties.getSession().getPermissionKey());
+        BoundHashOperations<String, String, String> roleStore = redisTemplate.boundHashOps(safeProperties.getPermissionKey());
 
         String roleKey = getRoleKey(AccountIdOptional.get());
         if (BooleanUtils.isNotTrue(roleStore.hasKey(roleKey))) {
@@ -230,11 +259,11 @@ public class SessionManager {
                 pms = Lists.newArrayList();
             }
             roleStore.put(roleKey, JSON.toJSONString(pms));
+            roleStore.put(SESSION_PMS_REFRESH_ATTR_KEY, String.valueOf(Instant.now().toEpochMilli()));
         }
 
         return JSON.parseObject(roleStore.get(roleKey), List.class);
     }
-
 
     public static boolean hasRole(String... role) {
         return getRole().containsAll(Arrays.asList(role));
@@ -252,6 +281,28 @@ public class SessionManager {
     public static boolean hasAnyPermission(String... pms) {
         List<String> pms1 = getPermission();
         return Stream.of(pms).anyMatch(pms1::contains);
+    }
+
+
+    public static void refreshAllRoleAndPermission(String... key) {
+        if (ArrayUtils.isEmpty(key)) {
+            redisTemplate.opsForValue().set(safeProperties.getPermissionRefreshKey(), String.valueOf(Instant.now().toEpochMilli()));
+            return;
+        }
+
+        Stream.of(key).forEach(k -> redisTemplate.opsForValue().set(k, String.valueOf(Instant.now().toEpochMilli())));
+    }
+
+    public static void invalid(long accountId) {
+        setAttribute(accountId, DEFAULT_STATE_ATTR_KEY, INVALID_STATE_ATTR_VALUE);
+    }
+
+    public static void valid(long accountId) {
+        removeAttribute(accountId, DEFAULT_STATE_ATTR_KEY);
+    }
+
+    public static boolean isValidSessionState() {
+        return !INVALID_STATE_ATTR_VALUE.equals(getAttribute(DEFAULT_STATE_ATTR_KEY));
     }
 
 }
