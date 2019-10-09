@@ -49,13 +49,15 @@ public class SessionManager {
 
     public static List<BoundHashOperations<String, String, String>> getSession(long accountId) {
         Set<String> keys = redisTemplate.keys(getSessionMapKey(accountId, "*"));
+
         List<BoundHashOperations<String, String, String>> sessions = Lists.newArrayList();
 
         if (CollectionUtils.isNotEmpty(keys)) {
             for (String key : keys) {
-                sessions.add(redisTemplate.boundHashOps(key));
+                sessions.add(getSession(redisTemplate.opsForValue().get(key)));
             }
         }
+
         return sessions;
     }
 
@@ -126,8 +128,22 @@ public class SessionManager {
      * @return
      */
     public static BoundHashOperations<String, String, String> createAuthenticatedSession(HttpServletResponse response, Long accountId) {
+        BoundHashOperations<String, String, String> lastSession = getSession();
+
+        BoundHashOperations<String, String, String> session = createSession(response, createSessionId(), accountId);
+        Map<String, String> entries = lastSession.entries();
+        if (entries != null) {
+            for (String key : entries.keySet()) {
+                if ("accountId".equals(key) || SafeProperties.DEFAULT_SESSION_ID.equals(key) || entries.get(key) == null) {
+                    continue;
+                }
+
+                session.put(key, entries.get(key));
+            }
+        }
+
         clearLastSession(accountId, WebContext.get().getSessionId());
-        return createSession(response, createSessionId(), accountId);
+        return session;
     }
 
     private static void clearLastSession(Long accountId, String sessionId) {
@@ -237,7 +253,6 @@ public class SessionManager {
                 pms = Lists.newArrayList();
             }
             pmsStore.put(pmsKey, JSON.toJSONString(pms));
-            pmsStore.put(SESSION_PMS_REFRESH_ATTR_KEY, String.valueOf(Instant.now().toEpochMilli()));
         }
 
         return JSON.parseObject(pmsStore.get(pmsKey), List.class);
