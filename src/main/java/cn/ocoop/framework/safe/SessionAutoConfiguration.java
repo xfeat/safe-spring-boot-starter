@@ -3,19 +3,18 @@ package cn.ocoop.framework.safe;
 import cn.ocoop.framework.safe.ann.handler.advice.AuthorizationAttributeSourceAdvisor;
 import cn.ocoop.framework.safe.auth.controller.CaptchaController;
 import cn.ocoop.framework.safe.auth.service.AuthorizingService;
-import cn.ocoop.framework.safe.filter.SafeFilter;
 import cn.ocoop.framework.safe.response.FieldFilterAdvice;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+@RefreshScope
 @Configuration
 @ConditionalOnWebApplication
 @AutoConfigureAfter(RedisAutoConfiguration.class)
@@ -56,11 +55,4 @@ public class SessionAutoConfiguration {
         return new CaptchaController();
     }
 
-    @Bean
-    @Order
-    public FilterRegistrationBean safeFilter() {
-        FilterRegistrationBean filter = new FilterRegistrationBean<>(new SafeFilter());
-        filter.addUrlPatterns("/*");
-        return filter;
-    }
 }
