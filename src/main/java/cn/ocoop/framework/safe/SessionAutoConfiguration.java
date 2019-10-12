@@ -3,11 +3,13 @@ package cn.ocoop.framework.safe;
 import cn.ocoop.framework.safe.ann.handler.advice.AuthorizationAttributeSourceAdvisor;
 import cn.ocoop.framework.safe.auth.controller.CaptchaController;
 import cn.ocoop.framework.safe.auth.service.AuthorizingService;
-import cn.ocoop.framework.safe.filter.SafeFilter;
 import cn.ocoop.framework.safe.response.FieldFilterAdvice;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.condition.SearchStrategy;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -21,7 +23,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnWebApplication
 @AutoConfigureAfter(RedisAutoConfiguration.class)
 @ConditionalOnBean(AuthorizingService.class)
-@EnableConfigurationProperties({SafeProperties.class, CaptchaProperty.class})
+@EnableConfigurationProperties({SafeProperties.class, CaptchaProperties.class})
 public class SessionAutoConfiguration {
 
     public SessionAutoConfiguration(SafeProperties safeProperties, StringRedisTemplate redisTemplate, AuthorizingService authorizingService) {
@@ -32,13 +34,19 @@ public class SessionAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuthorizationAttributeSourceAdvisor.class)
-    public AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor() {
+    public static AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor() {
         return new AuthorizationAttributeSourceAdvisor();
     }
 
     @Bean
+    public static FilterRegistrationBean<SafeFilter> safeFilterRegistration(SafeFilter safeFilter) {
+        FilterRegistrationBean<SafeFilter> registration = new FilterRegistrationBean<>(safeFilter);
+        registration.setOrder(SafeFilter.DEFAULT_ORDER);
+        return registration;
+    }
+
+    @Bean
     @ConditionalOnMissingBean(DefaultAdvisorAutoProxyCreator.class)
-    @ConditionalOnMissingClass("springfox.documentation.swagger2.annotations.EnableSwagger2")
     public DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator() {
         DefaultAdvisorAutoProxyCreator defaultAdvisorAutoProxyCreator = new DefaultAdvisorAutoProxyCreator();
         defaultAdvisorAutoProxyCreator.setProxyTargetClass(true);
@@ -58,9 +66,8 @@ public class SessionAutoConfiguration {
     }
 
     @Bean
-    public static FilterRegistrationBean<SafeFilter> safeFilterRegistration() {
-        FilterRegistrationBean<SafeFilter> registration = new FilterRegistrationBean<>(new SafeFilter());
-        registration.setOrder(Integer.MIN_VALUE + 50);
-        return registration;
+    @ConditionalOnMissingBean(SafeFilter.class)
+    public SafeFilter safeFilter() {
+        return new SafeFilter();
     }
 }

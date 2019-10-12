@@ -6,7 +6,7 @@
 
     <groupId>cn.ocoop.framework</groupId>
     <artifactId>safe-spring-boot-starter</artifactId>
-    <version>1.2.2</version>
+    <version>1.2.3</version>
 
     <name>safe-spring-boot-starter</name>
     <description>simple and easy use security framework to protect your spring boot web-application.</description>
@@ -107,11 +107,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>2.1.8.RELEASE</spring-boot.version>
         <spring-cloud.version>Greenwich.SR3</spring-cloud.version>
-        <fastjson.version>1.2.47</fastjson.version>
-        <commons-beanutils.version>1.9.3</commons-beanutils.version>
+        <fastjson.version>1.2.62</fastjson.version>
+        <commons-beanutils.version>1.9.4</commons-beanutils.version>
         <easy-captcha.version>1.6.2</easy-captcha.version>
-        <guava.version>25.1-jre</guava.version>
-        <commons-collections4.version>4.1</commons-collections4.version>
+        <guava.version>28.1-jre</guava.version>
+        <commons-collections4.version>4.4</commons-collections4.version>
     </properties>
 
     <dependencies>

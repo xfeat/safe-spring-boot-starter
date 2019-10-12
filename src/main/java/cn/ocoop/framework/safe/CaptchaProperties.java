@@ -18,8 +18,8 @@ import static com.wf.captcha.base.Captcha.TYPE_ONLY_NUMBER;
 
 @RefreshScope
 @Data
-@ConfigurationProperties(prefix = CaptchaProperty.PREFIX)
-public class CaptchaProperty {
+@ConfigurationProperties(prefix = CaptchaProperties.PREFIX)
+public class CaptchaProperties {
     static final String PREFIX = "safe.captcha";
     private static Map<Class<? extends Captcha>, CaptchaSupplier> class_Strategy = Maps.newHashMap();
 
@@ -59,7 +59,7 @@ public class CaptchaProperty {
 
     @FunctionalInterface
     interface CaptchaSupplier {
-        Captcha supplier(CaptchaProperty property) throws IOException, FontFormatException;
+        Captcha supplier(CaptchaProperties property) throws IOException, FontFormatException;
     }
 
 

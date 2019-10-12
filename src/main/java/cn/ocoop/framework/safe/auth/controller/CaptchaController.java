@@ -1,6 +1,6 @@
 package cn.ocoop.framework.safe.auth.controller;
 
-import cn.ocoop.framework.safe.CaptchaProperty;
+import cn.ocoop.framework.safe.CaptchaProperties;
 import cn.ocoop.framework.safe.SessionManager;
 import cn.ocoop.framework.safe.ann.handler.CaptchaAnnotationMethodInterceptor;
 import com.wf.captcha.base.Captcha;
@@ -18,11 +18,11 @@ import java.io.IOException;
 public class CaptchaController {
 
     @Autowired
-    private CaptchaProperty captchaProperty;
+    private CaptchaProperties captchaProperties;
 
     @GetMapping("/captcha")
     public String captcha() throws IOException, FontFormatException {
-        Captcha captcha = captchaProperty.getCaptcha();
+        Captcha captcha = captchaProperties.getCaptcha();
         SessionManager.setAttribute(CaptchaAnnotationMethodInterceptor.DEFAULT_SESSION_CAPTCHA, captcha.text());
         return captcha.toBase64();
     }
