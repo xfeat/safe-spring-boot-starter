@@ -52,6 +52,7 @@ public class CaptchaProperties {
     private int length = 4;
     private int mixMode = TYPE_ONLY_NUMBER;
     private int font = Captcha.FONT_1;
+    private boolean enabled = true;
 
     public Captcha getCaptcha() throws IOException, FontFormatException {
         return class_Strategy.get(getType()).supplier(this);

@@ -21,6 +21,8 @@ public class CaptchaAnnotationMethodInterceptor extends AbstractAnnotationMethod
 
     @Override
     protected void assertAuth(MethodInvocation methodInvocation, Annotation annotation) throws AuthorizingException {
+        if (!SessionManager.captchaProperties.isEnabled()) return;
+
         String captcha = SessionManager.getAttribute(DEFAULT_SESSION_CAPTCHA);
         if (StringUtils.isBlank(captcha)) throw new InvalidCaptchaException("captcha required, check it out first!");
 

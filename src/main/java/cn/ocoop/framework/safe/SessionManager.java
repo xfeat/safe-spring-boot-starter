@@ -28,6 +28,7 @@ public class SessionManager {
     private static final String DEFAULT_STATE_ATTR_KEY = "_STATE";
     private static final String INVALID_STATE_ATTR_VALUE = "_INVALID";
     public static SafeProperties safeProperties;
+    public static CaptchaProperties captchaProperties;
     public static StringRedisTemplate redisTemplate;
     public static AuthorizingService authorizingService;
 

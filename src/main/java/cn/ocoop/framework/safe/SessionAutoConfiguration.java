@@ -26,9 +26,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @EnableConfigurationProperties({SafeProperties.class, CaptchaProperties.class})
 public class SessionAutoConfiguration {
 
-    public SessionAutoConfiguration(SafeProperties safeProperties, StringRedisTemplate redisTemplate, AuthorizingService authorizingService) {
+    public SessionAutoConfiguration(SafeProperties safeProperties, CaptchaProperties captchaProperties, StringRedisTemplate redisTemplate, AuthorizingService authorizingService) {
         SessionManager.redisTemplate = redisTemplate;
         SessionManager.safeProperties = safeProperties;
+        SessionManager.captchaProperties = captchaProperties;
         SessionManager.authorizingService = authorizingService;
     }
 
