@@ -44,11 +44,14 @@ public class ExceptionAdviceHandler extends ResponseEntityExceptionHandler {
             request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, ex, WebRequest.SCOPE_REQUEST);
         }
 
+        int statusCode = status.value();
         if (body == null) {
             body = errorWrap(status.value(), status.name(), ex.getLocalizedMessage());
+        } else if (body instanceof Map) {
+            statusCode = (int) ((Map) body).getOrDefault("code", statusCode);
         }
 
-        return ResponseEntity.status(status.value()).headers(headers).body(body);
+        return ResponseEntity.status(statusCode).headers(headers).body(body);
     }
 
     protected Map<String, Object> errorWrap(int status, String title, String message) {
