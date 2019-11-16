@@ -118,7 +118,7 @@
 
 |含义|请求地址|
 |---|---|
-|获取图形验证码(base64格式)|/secure/captcha-stream|
+|获取图形验证码(base64格式)|/secure/captcha-base64|
 |获取图形验证码(stream格式)|/secure/captcha-stream|
 
 ### 验证码校验
