@@ -51,6 +51,7 @@
         session-key-prefix: "boss:session:"         #redis中存储会话id的key前缀
         session-map-key-prefix: "boss:session_map:" #redis中存储accountId和会话id映射关系的key前缀
         permission-key: "boss:pms"                  #redis中存储权限信息的key前缀
+        timeout: 1800                               #会话超时时间 
       captcha:                                      #验证码配置
         enabled: true                               #是否开启验证码校验  
         type: com.wf.captcha.ArithmeticCaptcha      #验证码样式
@@ -143,10 +144,6 @@ public class ControllerAdviceExceptionHandler extends ExceptionAdviceHandler {
     }
 }
 ```
-
-## 会话超时
-
-目前尚未提供超时配置，默认给定的超时时间为2天
 
 ## 对Controller返回值的字段进行过滤
 

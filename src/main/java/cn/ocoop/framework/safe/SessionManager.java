@@ -4,16 +4,17 @@ import cn.ocoop.framework.safe.auth.service.AuthorizingService;
 import cn.ocoop.framework.safe.utils.CookieUtils;
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.time.Instant;
 import java.util.*;
@@ -24,32 +25,36 @@ import java.util.stream.Stream;
 @Data
 public class SessionManager {
 
-    private static final String SESSION_PMS_REFRESH_ATTR_KEY = "_LAST_PMS_REFRESH_TIME";
-    private static final String DEFAULT_STATE_ATTR_KEY = "_STATE";
-    private static final String INVALID_STATE_ATTR_VALUE = "_INVALID";
+    private static final String ATTR_KEY_LAST_PMS_REFRESH_TIME = SessionManager.class.getName().concat(".LAST_PMS_REFRESH_TIME");
+    private static final String ATTR_KEY_STATE = SessionManager.class.getName().concat(".STATE");
+    private static final String ATTR_KEY_ACCOUNT_ID = SessionManager.class.getName().concat(".ACCOUNT_ID");
+    private static final String ATTR_KEY_ID = SessionManager.class.getName().concat(".SESSION_ID");
+    private static final String INVALID_STATE_ATTR_VALUE = SessionManager.class.getName().concat(".INVALID");
     public static SafeProperties safeProperties;
     public static CaptchaProperties captchaProperties;
     public static StringRedisTemplate redisTemplate;
     public static AuthorizingService authorizingService;
+    private static Set<String> PRE_DEFINED_ATTR_KEY = Sets.newHashSet(ATTR_KEY_LAST_PMS_REFRESH_TIME, ATTR_KEY_STATE, ATTR_KEY_ACCOUNT_ID, ATTR_KEY_ID);
 
     public static BoundHashOperations<String, String, String> getSession(String sessionId) {
-        return redisTemplate.boundHashOps(getSessionkey(sessionId));
+        BoundHashOperations<String, String, String> session = redisTemplate.boundHashOps(getSessionkey(sessionId));
+        session.put(ATTR_KEY_ID, sessionId);
+        return session;
     }
 
-    public static BoundHashOperations<String, String, String> getSession() {
+    public static Optional<BoundHashOperations<String, String, String>> getSession(boolean create) {
 
-        if (WebContext.get().getSessionId() == null) {
-            String sessionId = createSessionId();
-            SessionManager.createSession(WebContext.get().getResponse(), sessionId);
-            WebContext.get().setSessionId(sessionId);
-            log.info("new session[{}] is created!", sessionId);
+        if (WebContext.get().getSessionId() == null && create) {
+            createSession(WebContext.get().getResponse(), createSessionId(), null);
+            log.info("new session[{}] is created!", WebContext.get().getSessionId());
         }
 
-        return redisTemplate.boundHashOps(getSessionkey(WebContext.get().getSessionId()));
+        if (WebContext.get().getSessionId() == null) return Optional.empty();
+        return Optional.of(getSession(WebContext.get().getSessionId()));
     }
 
     public static List<BoundHashOperations<String, String, String>> getSession(long accountId) {
-        Set<String> keys = redisTemplate.keys(getSessionMapKey(accountId, "*"));
+        Set<String> keys = redisTemplate.keys(getAccountRefSessionKey(accountId, "*"));
 
         List<BoundHashOperations<String, String, String>> sessions = Lists.newArrayList();
 
@@ -79,42 +84,44 @@ public class SessionManager {
     }
 
     public static void setAttribute(String key, String value) {
-        getSession().put(key, value);
+        getSession(true).get().put(key, value);
     }
 
     public static String getAttribute(String key) {
-        return getSession().get(key);
+        return getSession(true).get().get(key);
     }
 
     public static void removeAttribute(String key) {
-        getSession().delete(key);
+        getSession(true).get().delete(key);
     }
 
-    public static void logout(HttpServletResponse response) {
-        getCurrentAccountId().ifPresent(accountId -> {
-            redisTemplate.delete(Lists.newArrayList(
-                    WebContext.get().getSessionId(),
-                    getSessionMapKey(accountId, WebContext.get().getSessionId()),
-                    getRoleKey(accountId),
-                    getPmsKey(accountId)
-            ));
+    public static void logout() {
+        getCurrentAccountId().ifPresent(accountId -> logout(accountId, WebContext.get().getSessionId()));
+    }
 
-            CookieUtils.clear(response, safeProperties.getSessionIdCookieName());
-        });
+    public static void logout(long accountId, String sessionId) {
+        redisTemplate.delete(Lists.newArrayList(
+                getSessionkey(sessionId),
+                getAccountRefSessionKey(accountId, sessionId),
+                getRoleKey(accountId),
+                getPmsKey(accountId)
+        ));
     }
 
     private static BoundHashOperations<String, String, String> createSession(HttpServletResponse response, String sessionId, Long accountId) {
-        BoundHashOperations<String, String, String> hash = redisTemplate.boundHashOps(getSessionkey(sessionId));
-
-        hash.put(SafeProperties.DEFAULT_SESSION_ID, sessionId);
-        hash.expire(2, TimeUnit.DAYS);
+        BoundHashOperations<String, String, String> session = redisTemplate.boundHashOps(getSessionkey(sessionId));
+        session.expire(safeProperties.getTimeout(), TimeUnit.SECONDS);
+        session.put(ATTR_KEY_ID, sessionId);
         if (accountId != null) {
-            hash.put("accountId", String.valueOf(accountId));
-            redisTemplate.opsForValue().set(getSessionMapKey(accountId, sessionId), sessionId, 2, TimeUnit.DAYS);
+            session.put(ATTR_KEY_ACCOUNT_ID, String.valueOf(accountId));
+            redisTemplate.opsForValue().set(getAccountRefSessionKey(accountId, sessionId), sessionId, safeProperties.getTimeout(), TimeUnit.SECONDS);
         }
 
         CookieUtils.store(response, safeProperties.getSessionIdCookieName(), sessionId);
-        return hash;
+
+        WebContext.get().setSessionId(sessionId);
+
+        return session;
     }
 
     public static BoundHashOperations<String, String, String> createSession(HttpServletResponse response, String sessionId) {
@@ -129,58 +136,57 @@ public class SessionManager {
      * @return
      */
     public static BoundHashOperations<String, String, String> createAuthenticatedSession(HttpServletResponse response, Long accountId) {
-        BoundHashOperations<String, String, String> lastSession = getSession();
+        Optional<BoundHashOperations<String, String, String>> lastSession = getSession(false);
 
         BoundHashOperations<String, String, String> session = createSession(response, createSessionId(), accountId);
-        Map<String, String> entries = lastSession.entries();
+        if (!lastSession.isPresent()) return session;
+
+        Map<String, String> entries = lastSession.get().entries();
         if (entries != null) {
             for (String key : entries.keySet()) {
-                if ("accountId".equals(key) || SafeProperties.DEFAULT_SESSION_ID.equals(key) || entries.get(key) == null) {
-                    continue;
-                }
+                if (PRE_DEFINED_ATTR_KEY.contains(key) || entries.get(key) == null) continue;
 
                 session.put(key, entries.get(key));
             }
         }
 
-        clearLastSession(accountId, WebContext.get().getSessionId());
+        logout(accountId, WebContext.get().getSessionId());
         return session;
-    }
-
-    private static void clearLastSession(Long accountId, String sessionId) {
-        redisTemplate.delete(getSessionkey(sessionId));
-        if (accountId != null) {
-            redisTemplate.delete(getSessionMapKey(accountId, sessionId));
-        }
     }
 
     private static String getSessionkey(String sessionId) {
         return safeProperties.getSessionKeyPrefix() + sessionId;
     }
 
-    private static String getSessionMapKey(long accountId, String sessionId) {
+    private static String getAccountRefSessionKey(long accountId, String sessionId) {
         return safeProperties.getSessionMapKeyPrefix() + accountId + ":" + sessionId;
     }
 
     public static boolean isLogin(String sessionId) {
         BoundHashOperations<String, String, String> session = getSession(sessionId);
-        return StringUtils.isNotBlank(session.get("accountId"));
+        return StringUtils.isNotBlank(session.get(ATTR_KEY_ACCOUNT_ID));
     }
 
     public static boolean isLogin() {
-        BoundHashOperations<String, String, String> session = getSession();
-        return StringUtils.isNotBlank(session.get("accountId"));
+        Optional<BoundHashOperations<String, String, String>> session = getSession(false);
+        return session.filter(s -> StringUtils.isNotBlank(s.get(ATTR_KEY_ACCOUNT_ID))).isPresent();
+
     }
 
-    public static boolean touch(String sessionId) {
-        Boolean expire = redisTemplate.expire(getSessionkey(sessionId), 2, TimeUnit.DAYS);
-        if (BooleanUtils.isNotTrue(expire)) return false;
+    public static void touch() {
+        Optional<Cookie> cookie = CookieUtils.get(WebContext.get().getRequest(), safeProperties.getSessionIdCookieName());
+        if (!cookie.isPresent()) return;
 
-        if (isLogin(sessionId)) {
-            redisTemplate.opsForValue().set(getSessionMapKey(NumberUtils.toLong(getSession(sessionId).get("accountId")), sessionId), sessionId, 2, TimeUnit.DAYS);
-        }
+        Boolean expire = redisTemplate.expire(getSessionkey(cookie.get().getValue()), safeProperties.getTimeout(), TimeUnit.SECONDS);
+        if (BooleanUtils.isNotTrue(expire)) return;
 
-        return true;
+        WebContext.get().setSessionId(cookie.get().getValue());
+
+        Optional<Long> currentAccountId = getCurrentAccountId();
+
+        if (!currentAccountId.isPresent()) return;
+
+        redisTemplate.expire(getAccountRefSessionKey(currentAccountId.get(), cookie.get().getValue()), safeProperties.getTimeout(), TimeUnit.SECONDS);
     }
 
     private static String getPmsKey(long accountId) {
@@ -193,9 +199,10 @@ public class SessionManager {
 
     public static Optional<Long> getCurrentAccountId() {
         BoundHashOperations<String, String, String> session = getSession(WebContext.get().getSessionId());
-        if (StringUtils.isBlank(session.get("accountId"))) return Optional.empty();
+        String accountId = session.get(ATTR_KEY_ACCOUNT_ID);
+        if (StringUtils.isBlank(accountId)) return Optional.empty();
 
-        return Optional.of(NumberUtils.toLong(session.get("accountId")));
+        return Optional.of(Long.parseLong(accountId));
     }
 
     public static void clearAllRoleAndPermission() {
@@ -229,7 +236,7 @@ public class SessionManager {
     }
 
     public static void refreshCachedRoleAndPermissionIfNecessary() {
-        String cachedRefreshTime = getAttribute(SESSION_PMS_REFRESH_ATTR_KEY);
+        String cachedRefreshTime = getAttribute(ATTR_KEY_LAST_PMS_REFRESH_TIME);
         if (cachedRefreshTime == null) return;
 
         String refreshTime = redisTemplate.opsForValue().get(safeProperties.getPermissionRefreshKey());
@@ -240,20 +247,19 @@ public class SessionManager {
 
     @SuppressWarnings("unchecked")
     public static List<String> getPermission() {
-        Optional<Long> AccountIdOptional = getCurrentAccountId();
-        if (!AccountIdOptional.isPresent()) {
-            return Lists.newArrayList();
-        }
+        Optional<Long> accountIdOptional = getCurrentAccountId();
+        if (!accountIdOptional.isPresent()) return Lists.newArrayList();
 
         BoundHashOperations<String, String, String> pmsStore = redisTemplate.boundHashOps(safeProperties.getPermissionKey());
 
-        String pmsKey = getPmsKey(AccountIdOptional.get());
+        String pmsKey = getPmsKey(accountIdOptional.get());
         if (BooleanUtils.isNotTrue(pmsStore.hasKey(pmsKey))) {
-            List<String> pms = authorizingService.listPermission(AccountIdOptional.get());
+            List<String> pms = authorizingService.listPermission(accountIdOptional.get());
             if (CollectionUtils.isEmpty(pms)) {
                 pms = Lists.newArrayList();
             }
             pmsStore.put(pmsKey, JSON.toJSONString(pms));
+            pmsStore.put(ATTR_KEY_LAST_PMS_REFRESH_TIME, String.valueOf(Instant.now().toEpochMilli()));
         }
 
         return JSON.parseObject(pmsStore.get(pmsKey), List.class);
@@ -261,21 +267,19 @@ public class SessionManager {
 
     @SuppressWarnings("unchecked")
     public static List<String> getRole() {
-        Optional<Long> AccountIdOptional = getCurrentAccountId();
-        if (!AccountIdOptional.isPresent()) {
-            return Lists.newArrayList();
-        }
+        Optional<Long> accountIdOptional = getCurrentAccountId();
+        if (!accountIdOptional.isPresent()) return Lists.newArrayList();
 
         BoundHashOperations<String, String, String> roleStore = redisTemplate.boundHashOps(safeProperties.getPermissionKey());
 
-        String roleKey = getRoleKey(AccountIdOptional.get());
+        String roleKey = getRoleKey(accountIdOptional.get());
         if (BooleanUtils.isNotTrue(roleStore.hasKey(roleKey))) {
-            List<String> pms = authorizingService.listRole(AccountIdOptional.get());
+            List<String> pms = authorizingService.listRole(accountIdOptional.get());
             if (CollectionUtils.isEmpty(pms)) {
                 pms = Lists.newArrayList();
             }
             roleStore.put(roleKey, JSON.toJSONString(pms));
-            roleStore.put(SESSION_PMS_REFRESH_ATTR_KEY, String.valueOf(Instant.now().toEpochMilli()));
+            roleStore.put(ATTR_KEY_LAST_PMS_REFRESH_TIME, String.valueOf(Instant.now().toEpochMilli()));
         }
 
         return JSON.parseObject(roleStore.get(roleKey), List.class);
@@ -310,15 +314,15 @@ public class SessionManager {
     }
 
     public static void invalid(long accountId) {
-        setAttribute(accountId, DEFAULT_STATE_ATTR_KEY, INVALID_STATE_ATTR_VALUE);
+        setAttribute(accountId, ATTR_KEY_STATE, INVALID_STATE_ATTR_VALUE);
     }
 
     public static void valid(long accountId) {
-        removeAttribute(accountId, DEFAULT_STATE_ATTR_KEY);
+        removeAttribute(accountId, ATTR_KEY_STATE);
     }
 
     public static boolean isValidSessionState() {
-        return !INVALID_STATE_ATTR_VALUE.equals(getAttribute(DEFAULT_STATE_ATTR_KEY));
+        return !INVALID_STATE_ATTR_VALUE.equals(getAttribute(ATTR_KEY_STATE));
     }
 
 }
