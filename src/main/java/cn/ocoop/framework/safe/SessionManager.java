@@ -36,6 +36,11 @@ public class SessionManager {
     public static AuthorizingService authorizingService;
     private static Set<String> PRE_DEFINED_ATTR_KEY = Sets.newHashSet(ATTR_KEY_LAST_PMS_REFRESH_TIME, ATTR_KEY_STATE, ATTR_KEY_ACCOUNT_ID, ATTR_KEY_ID);
 
+
+    public static String getSessionId() {
+        return WebContext.get().getSessionId();
+    }
+
     public static BoundHashOperations<String, String, String> getSession(String sessionId) {
         BoundHashOperations<String, String, String> session = redisTemplate.boundHashOps(getSessionkey(sessionId));
         session.put(ATTR_KEY_ID, sessionId);
@@ -150,7 +155,7 @@ public class SessionManager {
             }
         }
 
-        logout(accountId, WebContext.get().getSessionId());
+        logout(accountId, lastSession.get().get(ATTR_KEY_ID));
         return session;
     }
 
@@ -303,7 +308,6 @@ public class SessionManager {
         return Stream.of(pms).anyMatch(pms1::contains);
     }
 
-
     public static void refreshAllRoleAndPermission(String... key) {
         if (ArrayUtils.isEmpty(key)) {
             redisTemplate.opsForValue().set(safeProperties.getPermissionRefreshKey(), String.valueOf(Instant.now().toEpochMilli()));
@@ -324,5 +328,4 @@ public class SessionManager {
     public static boolean isValidSessionState() {
         return !INVALID_STATE_ATTR_VALUE.equals(getAttribute(ATTR_KEY_STATE));
     }
-
 }
