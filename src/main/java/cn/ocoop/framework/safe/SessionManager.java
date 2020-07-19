@@ -203,6 +203,8 @@ public class SessionManager {
     }
 
     public static Optional<Long> getCurrentAccountId() {
+        if (StringUtils.isBlank(WebContext.get().getSessionId())) return Optional.empty();
+
         BoundHashOperations<String, String, String> session = getSession(WebContext.get().getSessionId());
         String accountId = session.get(ATTR_KEY_ACCOUNT_ID);
         if (StringUtils.isBlank(accountId)) return Optional.empty();
